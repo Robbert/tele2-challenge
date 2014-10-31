@@ -1,5 +1,7 @@
 var ChallengeRendering = (function (HTML, JSON, NumberFormat) {
 
+"use strict";
+
 /**
  * @param {string} url
  * @param {Object} crop
@@ -22,17 +24,53 @@ function DataRendering(value, node)
 }
 
 /**
- * @param {Array.<DataRendering}
+ * @template Data
+ * @param {Array.<DataRendering>}
+ * @param {function(Data, Data)=} onchange
  * @return {HTMLSelectElement}
  */
-function createDropdown(values, descriptions)
+function createDropdown(values, descriptionCallback, onchange)
 {
+	var title;
 	var select = HTML.createElement("select");
+	var selected = null;
 	for (var i = 0, l = values.length; i < l; i++)
 	{
-		var option = select.option
+		var option = new Option;
+		option.value = i;
+
+		var data = values[i];
+
+		if (descriptionCallback)
+			title = descriptionCallback(data);
+		else
+			title = "" + data;
+
+		HTML.setTextContent(option, title);
+
 		select.appendChild(option);
 	}
+
+	select.onkeydown =
+	select.onchange = function ()
+	{
+		var i = select.selectedIndex;
+
+		var prev = selected;
+
+		if (i >= 0)
+		{
+			selected = values[i];
+		}
+		else
+		{
+			selected = null;
+		}
+
+		onchange(selected, prev);
+	};
+
+	return select;
 }
 
 /**
@@ -90,6 +128,8 @@ function fetch(url, headers, onload, onerror)
 function ChallengeRendering(root, url)
 {
 	console.log(root,url)
+	this.dataRenderings = [];
+	this.highlighted = null;
 	this.url = url;
 	this.root = HTML.createElement("div");
 	this.root.className = "phones";
@@ -107,6 +147,9 @@ ChallengeRendering.prototype.destruct = function ()
 {
 	if (this.root && this.root.parentNode)
 		this.root.parentNode.removeChild(this.root);
+
+	this.highlighted = null;
+	this.dataRenderings.length = 0;
 };
 
 ChallengeRendering.prototype.reload = function ()
@@ -153,6 +196,7 @@ ChallengeRendering.prototype.reload = function ()
 
 ChallengeRendering.prototype.redraw = function ()
 {
+	var self = this;
 	var currency = new NumberFormat("€ ######.##");
 	this.headerLevel = "h2";
 	var frag = HTML.createFragment();
@@ -171,7 +215,7 @@ ChallengeRendering.prototype.redraw = function ()
 			if (!item.name)
 				continue;
 
-			console.log(item);
+			// console.log(item);
 
 			var priceStr = currency.format(parseFloat(item.price)),
 				titleStr = item.name;
@@ -186,10 +230,19 @@ ChallengeRendering.prototype.redraw = function ()
 			phone.appendChild(title);
 			phone.appendChild(detail);
 			frag.appendChild(phone);
+
+			this.dataRenderings.push(new DataRendering(item, phone));
 		}
 
+		var onchange = function (selectedData, previouslySelected) {
+			self.highlight(selectedData);
+		};
 
-			var select = createSelect()
+		var items = this.data;
+		var dropdown = createDropdown(items, function (data) { return data.name }, onchange);
+
+		// TODO: render in the right spot
+		this.root.appendChild(dropdown);
 	}
 
 	this.root.appendChild(frag);
@@ -210,22 +263,33 @@ ChallengeRendering.prototype.drawError = function (e)
 };
 
 /**
- * @param {data} data
+ * @param {*} data
  */
 ChallengeRendering.prototype.highlight = function (data)
 {
 	if (this.highlighted)
-		this.highlighted.className = "phone";
+	{
+		this.highlighted.node.className = "phone";
 		// TODO:
 		// HTML.removeClass(this.highlighted, "highlighted");
+	}
 
-	var newHighlight;
-	// TODO: find new highlight
+	var newHighlight = null;
+
+	// Find new highlight HTML
+	for (var i = this.dataRenderings.length; i--;)
+	{
+		if (this.dataRenderings[i].value === data)
+			newHighlight = this.dataRenderings[i];
+	}
 
 	if (newHighlight)
-		newHighlight.className = "phone highlighted";
+	{
+		this.highlighted = newHighlight;
+		newHighlight.node.className = "phone highlighted";
 		// TODO:
 		// HTML.addClass(newHighlight, "highlighted");
+	}
 };
 
 return ChallengeRendering;

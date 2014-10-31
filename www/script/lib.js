@@ -1,5 +1,7 @@
 var HTML = (function (doc) {
 
+"use strict";
+
 var HTML = {};
 
 /**
@@ -59,6 +61,8 @@ return HTML;
 })(document);
 
 var NumberFormat = (function () {
+
+"use strict";
 
 /**
  * @constructor
